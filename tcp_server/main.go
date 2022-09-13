@@ -6,12 +6,10 @@ import (
 	"net"
 )
 
-func main(){
-
+func main() {
 
 	port := "8888"
-	listener, err := net.Listen("tcp", ":" + port)
-
+	listener, err := net.Listen("tcp", ":"+port)
 
 	if err != nil {
 		log.Fatalf("Unable to bind port: %s", port)
@@ -31,37 +29,20 @@ func main(){
 
 	}
 
-
 }
-
 
 // Read data from conn and write it back
 func echo(conn net.Conn) {
 
 	defer conn.Close()
 
-	buff := make([]byte, 512)
-
 	for {
-		size, err := conn.Read(buff)
 
-		if err == io.EOF{
-			log.Println("Client disconnected")
-			break
+		if _, err := io.Copy(conn, conn); err != nil {
+			log.Fatalln("Unable to read/write data")
+
 		}
 
-		if err != nil {
-			log.Println("Unexpected error")
-			break
-		}
-
-		log.Printf("Received %d bytes: %s\n", size, string(buff))
-
-		log.Println("Writing data")
-
-		if _, err := conn.Write(buff[0:size]); err != nil {
-			log.Fatalln("Unable to write data")
-		}
 	}
 
 }
