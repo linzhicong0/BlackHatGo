@@ -16,16 +16,15 @@ var (
 	}}
 
 	listenAddr string
-	wsAddr string
+	wsAddr     string
 	jsTemplate *template.Template
 )
 
-
-func init(){
+func init() {
 
 	fmt.Println("init")
-	flag.StringVar(&listenAddr, "listen-addr", "","Address to listen on")
-	flag.StringVar(&wsAddr,"ws-addr","","Address for websocket connection")
+	flag.StringVar(&listenAddr, "listen-addr", "", "Address to listen on")
+	flag.StringVar(&wsAddr, "ws-addr", "", "Address for websocket connection")
 	flag.Parse()
 
 	var err error
@@ -34,7 +33,7 @@ func init(){
 		panic(err)
 	}
 }
-func main(){
+func main() {
 
 	r := mux.NewRouter()
 
@@ -47,13 +46,12 @@ func main(){
 }
 
 func serverWS(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w,r, nil)
+	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
-		http.Error(w,"Error", 500)
+		http.Error(w, "Error", 500)
 		return
 	}
-
 
 	defer conn.Close()
 
@@ -67,7 +65,6 @@ func serverWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func serverFile(w http.ResponseWriter, r *http.Request) {
 	log.Println("file")
 
@@ -76,4 +73,3 @@ func serverFile(w http.ResponseWriter, r *http.Request) {
 	jsTemplate.Execute(w, wsAddr)
 
 }
-
