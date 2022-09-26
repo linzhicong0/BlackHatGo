@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/miekg/dns"
 	"os"
+	"text/tabwriter"
 )
 
 func main() {
@@ -26,6 +28,52 @@ func main() {
 
 	fmt.Println(*flWorkerCount, *flServerAddr)
 
+	var results []result
+
+	fqdns := make(chan string, *flWorkerCount)
+	gather := make(chan []result)
+	tracker := make(chan empty)
+
+	fh, err := os.Open(*flWordList)
+	if err != nil {
+		panic(err)
+	}
+
+	defer fh.Close()
+
+
+	for i := 0; i < *flWorkerCount; i++ {
+		go worker(tracker, fqdns, gather, *flServerAddr)
+	}
+
+	scanner := bufio.NewScanner(fh)
+	for scanner.Scan() {
+		fqdns <- fmt.Sprintf("%s.%s", scanner.Text(), *flDomain)
+	}
+
+	go func() {
+		for r := range gather {
+			results = append(results, r...)
+		}
+		var e empty
+		tracker <- e
+
+	}()
+
+	close(fqdns)
+
+	for i := 0; i < *flWorkerCount; i++ {
+		<-tracker
+	}
+	close(gather)
+	<-tracker
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 8, 4, ' ', 0)
+
+	for _, r := range results {
+		fmt.Fprintf(w, "%s\t%s\n", r.Hostname, r.IPAddress)
+	}
+	w.Flush()
 }
 
 type result struct {
@@ -89,7 +137,6 @@ func lookupCNAME(fqdn, serverAddr string) ([]string, error) {
 
 func lookup(fqdn, serverAddr string) []result {
 
-
 	var results []result
 
 	var cfqdn = fqdn
@@ -108,7 +155,7 @@ func lookup(fqdn, serverAddr string) []result {
 			break
 		}
 
-		for _, ip := range ips{
+		for _, ip := range ips {
 			results = append(results, result{
 				IPAddress: ip,
 				Hostname:  fqdn,
@@ -118,5 +165,20 @@ func lookup(fqdn, serverAddr string) []result {
 	}
 
 	return results
+
+}
+
+type empty struct{}
+
+func worker(tracker chan empty, fqdns chan string, gather chan []result, serverAddr string) {
+	for fqdn := range fqdns {
+		results := lookup(fqdn, serverAddr)
+		if len(results) > 0 {
+			gather <- results
+		}
+	}
+
+	var e empty
+	tracker <- e
 
 }
